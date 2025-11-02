@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: pvbattery
+    # Restart policy - uncomment if you want auto-restart
+    # restart: unless-stopped
+
+    # Environment variables - uncomment and add as needed
+    # environment:
+    #   - PYTHONUNBUFFERED=1
+    #   - DEBUG=true
+
+    # Volume mounts - uncomment if you need persistent data
+    # volumes:
+    #   - ./data:/app/data
+    #   - ./logs:/app/logs
+
+    # Port mapping - uncomment if your app serves HTTP/API
+    # ports:
+    #   - "8000:8000"
+
+    # Network mode - uncomment if needed
+    # network_mode: bridge
