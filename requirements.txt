@@ -1,6 +1,4 @@
 # Database connectivity
-# mariadb==1.1.10  # Requires C libraries - use if performance is critical
-# Alternative: PyMySQL (pure Python implementation, easier to install)
 pymysql==1.1.0
 
 # Data handling (using latest version for Python 3.13 compatibility)
@@ -8,3 +6,6 @@ pandas>=2.2.0
 
 # Environment variables (for secure credential management)
 python-dotenv==1.0.0
+
+scikit-learn==1.4.2
+numpy==1.26.4
