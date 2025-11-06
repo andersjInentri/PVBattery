@@ -7,10 +7,11 @@ services:
     # Restart policy - uncomment if you want auto-restart
     # restart: unless-stopped
 
-    # Environment variables - uncomment and add as needed
-    # environment:
-    #   - PYTHONUNBUFFERED=1
-    #   - DEBUG=true
+    # Environment variables - load from .env file
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
 
     # Volume mounts - uncomment if you need persistent data
     # volumes:

@@ -35,3 +35,6 @@ Dockerfile
 
 # Documentation
 README.md
+
+# Environment files (don't include real credentials in image)
+.env.example

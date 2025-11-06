@@ -13,5 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Environment variables can be passed at runtime
+# Example: docker run -e DB_HOST=host -e DB_USER=user ...
+
 # Run the application
 CMD ["python", "main.py"]
