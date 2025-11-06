@@ -25,6 +25,7 @@ wheels/
 
 # Environment variables (contains sensitive credentials)
 .env
+.env.example
 
 # IDEs
 .vscode/
