@@ -5,28 +5,34 @@ Predict how many Watt the solar panel will produce coming day. Production is pre
 ## Description
 I'm sending data from Home Assistant (HA). By that data is collected and thus in some extent preprocessed in HA.
 
+## Installation
+Install requirements.txt. See the file requirements.txt for installation details, what is going to be installed.
+```bash
+pip install -r requirements.txt
+```
+
 ## How to run
 Create a .env file and add the following parameters.
 
-<code>
-    DB_HOST=inentriqdb.tallas.se
-    DB_PORT=3306
-    DB_NAME=ha_db
-    DB_USER=[username]
-    DB_PASSWORD=[password]
-</code>
+```bash
+DB_HOST=inentriqdb.tallas.se
+DB_PORT=3306
+DB_NAME=ha_db
+DB_USER=[username]
+DB_PASSWORD=[password]
+```
 
 Then start execution with
 
-<code>
+```bash
 python main.py
-<code>
+```
 
 Alternative, if you do not use a .env file then execute with
 
-<code>
+```bash
 python main.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
-<code>
+```
 
 
 ## Final thoughts
@@ -44,8 +50,3 @@ Avoid that the modle is to specialized on the testdata
 Classification: Accuracy, how precise is the model
 Regression: 
 
-## Installation
-Install requirements.txt. See the file requirements.txt for installation details, what is going to be installed.
-<code>
-pip install -r requirements.txt
-</code>
