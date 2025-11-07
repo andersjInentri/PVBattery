@@ -1,9 +1,24 @@
 # PVBattery
 ## Purpose
-Predict how many Watt the solar panel will produce coming day. Production is predicted on each quarter of an hour. The thought in the long run is to be able to control when to save energy to the battery and when to sell energy to the net. This also depends on when the battery might be fully loaded and when it is, according to price, is better to sell energy directly without saving to battery.
+For each quarter of an hour the coming day predict how many Watt the solar panel will produce.
+
+Solar Panel Production is predicted on each quarter of an hour. The thought in the long run is to be able to control when to save energy to the battery and when to sell energy to the net. This also depends on when the battery might be fully loaded and when it is, according to price, better to sell energy directly without first filling up tthe battery.
 
 ## Description
-I'm sending data from Home Assistant (HA). By that data is collected and thus in some extent preprocessed in HA.
+Once every day, Home Assistant (HA) collects electricity prices for the coming day. The prices are unique for every 15 minutes, that is 4 prices for every hour, 96 unique prices for each day. The prices are stored in a MariaDB-table. HA also collects next day weather, unique for every hour. To that
+HA stores sun position for each hour, in elevation and azimuth. A view, to make it easy to read, is made on top of the tables. As important values are collected once every hour, the solar panel production will also be for a complete hour, but the result is for every quarter. Note the difference between watt and kWh. Solar panels are producing momentarily watt, so it will be an estimation how many watts. It is though possible to collect the predicted momentarily production and summarize how many kWh solar panels are producing for each hour and each day.
+
+By knowing the suns position, how cloudy it is supposed to be and the previous production from solar panels due to conditions, it should be possible to estimate how much the solar panels are going to produce the coming day, both in watt and kWh.
+
+**Summary of existing values for the project**
+Between 14:00 and 15:00 the day before, HA is preparing the following data for each 15 min, the coming day:
+- Timestamp (date and time for the row)
+- Price / kWh in SEK (can be negative but mostly positive. It is the variable price and does not include price for the net)
+- Cloudiness, in percent (Hourly value. 0 = clear sky, 100 = most cloudy)
+- Sun elevation (Hourly value. The suns vertical elevation from my address)
+- Sun azimuth (Hourly value. The suns horizontal direction from my hous, think compass direction)
+- Is daylight (Quarterly Value (another source than Sun Position!). Can be 0 or 1)
+- Power from Solar Panels (Quaterly value that HA writes at the actual time it has happened. This means that the value is 0 when the row is created but filled in at the actual date and time it has occured)
 
 ## Restriction
 **Note that this file can only be executed between 15:00 and 23:59!** This because next days weather is retrieved 14:00.

@@ -55,7 +55,7 @@ def main():
     print("Starting PVBattery project...")
 
     try:
-        # Step 1: Läs data från vy
+        # Step 1: Importera data - Läs data från en databas-vy där data är samlad per kvart.
         dataframe = read_ai_features_view()
 
         print(f"\nCheck that db connection works. Retrieved {len(dataframe)} records from view: ai_features_quarter_vw3")
