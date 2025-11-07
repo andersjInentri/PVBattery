@@ -2,7 +2,7 @@
 ## Purpose
 For each quarter of an hour the coming day predict how many Watt the solar panel will produce.
 
-Solar Panel Production is predicted on each quarter of an hour. The thought in the long run is to be able to control when to save energy to the battery and when to sell energy to the net. This also depends on when the battery might be fully loaded and when it is, according to price, better to sell energy directly without first filling up tthe battery.
+Solar Panel Production is predicted on each quarter of an hour. The thought in the long run is to be able to control when to save energy to the battery and when to sell energy to the net. This also depends on when the battery might be fully loaded and when it is, according to price, better to sell energy directly without first filling up the battery.
 
 ## Description
 Once every day, Home Assistant (HA) collects electricity prices for the coming day. The prices are unique for every 15 minutes, that is 4 prices for every hour, 96 unique prices for each day. The prices are stored in a MariaDB-table. HA also collects next day weather, unique for every hour. To that
@@ -19,6 +19,9 @@ Between 14:00 and 15:00 the day before, HA is preparing the following data for e
 - **Sun azimuth** Hourly value. The suns horizontal direction from my hous, think compass direction.
 - **Is daylight** Quarterly Value (another source than Sun Position!). Can be 0 or 1.
 - **Power from Solar Panels** Quaterly value that HA writes at the actual time it has happened. This means that the value is 0 when the row is created but filled in at the actual date and time it has occured.
+
+**Uncertainty**  
+Note that the **cloudiness** is in it self a predicated value.
 
 ## Restriction
 **Note that this file can only be executed between 15:00 and 23:59!** This because next days weather is retrieved 14:00.
@@ -52,6 +55,12 @@ Alternative, if you do not use a .env file then execute with
 python main.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
 ```
 
+This command will retrive the value of today
+```bash
+python db_reader.py 
+or
+python db_reader.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
+```
 
 ## Final thoughts
 Unsure if to use AI to estimate coming PV Generation or to makes use of home assistant sensors to calculate how best to utilize a solar battery.
