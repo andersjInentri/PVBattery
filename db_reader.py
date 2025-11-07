@@ -1,21 +1,18 @@
 import os
+# Använd pymysql istället för MySQLdb för MariaDB connection.
+# Undgår kompileringsproblem med MariaDB.
 import pymysql
 import pandas as pd
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Hämta environment variables från .env
 load_dotenv()
 
 
 def get_db_connection():
-    """
-    Establish a connection to the MariaDB database.
-
-    Returns:
-        pymysql.connections.Connection: Database connection object
-    """
+    # Skapa och returnera db connection till MariaDB
     try:
-        print(f"onnecting to MariaDB: {os.getenv('DB_PASSWORD')}")
+        print(f"Connecting to MariaDB: {os.getenv('DB_PASSWORD')}")
         conn = pymysql.connect(
             host=os.getenv('DB_HOST'),
             port=int(os.getenv('DB_PORT', 3306)),
@@ -31,22 +28,15 @@ def get_db_connection():
 
 
 def read_ai_features_view():
-    """
-    Read data from the ai_features_quarter_vw3 view.
-
-    Returns:
-        pandas.DataFrame: DataFrame containing the view data
-    """
+    # Läs data från ai_features_quarter_vw3 view.
+    # Returnerar dataframe
     conn = None
     try:
-        # Establish connection
         conn = get_db_connection()
 
-        # Query the view
         query = "SELECT * FROM ai_features_quarter_vw3 ORDER BY ts"
         print(f"Executing query: {query}")
 
-        # Read data into pandas DataFrame
         df = pd.read_sql(query, conn)
 
         print(f"Successfully retrieved {len(df)} rows from ai_features_quarter_vw3")
@@ -59,22 +49,14 @@ def read_ai_features_view():
         print(f"Error: {e}")
         raise
     finally:
-        # Always close the connection
+        # Stäng db connection
         if conn:
             conn.close()
             print("Database connection closed")
 
 
 def read_custom_query(query):
-    """
-    Execute a custom SQL query and return results as DataFrame.
-
-    Args:
-        query (str): SQL query to execute
-
-    Returns:
-        pandas.DataFrame: Query results
-    """
+    # Kör en SQL och returnerar resultatet som en dataframe.
     conn = None
     try:
         conn = get_db_connection()
@@ -90,23 +72,10 @@ def read_custom_query(query):
 
 
 if __name__ == "__main__":
-    # Example usage
+    # Fristående test av db_reader.py
     try:
-        # Read from the view
+        # Hämta dataframes från view
         df = read_ai_features_view()
-
-        # Display basic info
-        print("\n=== DataFrame Info ===")
-        print(df.info())
-
-        print("\n=== First rows ===")
-        print(df.head(n=10))
-
-        print("\n=== Column names ===")
-        print(df.columns.tolist())
-
-        # Example: Filter or process data
-        # df_filtered = df[df['some_column'] > 100]
 
     except Exception as e:
         print(f"Failed to read from database: {e}")

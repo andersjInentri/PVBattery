@@ -5,6 +5,9 @@ Predict how many Watt the solar panel will produce coming day. Production is pre
 ## Description
 I'm sending data from Home Assistant (HA). By that data is collected and thus in some extent preprocessed in HA.
 
+## Restriction
+$**Note that this file can only be executed between 15:00 and 23:59!**$ This because next days weather is retrieved 14:00.
+
 ## Installation
 Install requirements.txt. See the file requirements.txt for installation details, what is going to be installed.
 ```bash

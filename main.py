@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from datetime import datetime, timedelta
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression
 from db_reader import read_ai_features_view
@@ -36,15 +37,19 @@ def process(df):
     X_pred_design = np.column_stack([np.ones(len(X_pred)), X_pred.values])
     y_hat = X_pred_design @ w
 
-    # (valfritt) fysikstopp:
+    # Bara positiva värden och noll vid natt
     y_hat = np.where(df.loc[mask_pred, "sun_elevation_deg"].values <= 0, 0.0, y_hat)
     y_hat = np.clip(y_hat, 0, None)
     df.loc[mask_pred, TARGET] = y_hat
 
     df = df.set_index(pd.to_datetime(df["ts"], errors="coerce")).sort_index()
 
-    # Endast 2025-11-07 kl 10–14
-    print(df.loc["2025-11-06"].between_time("05:00", "18:00", inclusive="left")[["pv_power_w_avg","weather_cloud_pct", "sun_azimuth_deg", "sun_elevation_deg", "is_daylight"]].to_csv(sep=';', index=True, decimal=','))
+    # Skapa morgondagens datum i textformat
+    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # Skriv ut prediktion för imorgon mellan 05:00 och 18:00
+    # Använd semikolon som separator och komma som decimalpunkt, dvs format för Excel.
+    print(df.loc[tomorrow].between_time("05:00", "18:00", inclusive="left")[["pv_power_w_avg","weather_cloud_pct", "sun_azimuth_deg", "sun_elevation_deg", "is_daylight"]].to_csv(sep=';', index=True, decimal=','))
 
 def main():
     print("Starting PVBattery project...")
@@ -54,8 +59,6 @@ def main():
         dataframe = read_ai_features_view()
 
         print(f"\nCheck that db connection works. Retrieved {len(dataframe)} records from view: ai_features_quarter_vw3")
-        print("\nFirst few rows:")
-        print(dataframe.head(n=10))
 
         # Step 2: Processa data
         processed_dataframe = process(dataframe)
