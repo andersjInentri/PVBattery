@@ -8,20 +8,16 @@ I'm sending data from Home Assistant (HA). By that data is collected and thus in
 ## How to run
 Create a .env file and add the following parameters.
 <code>
-DB_HOST=inentriqdb.tallas.se
-DB_PORT=3306
-DB_NAME=ha_db
-DB_USER=[username]
-DB_PASSWORD=[password]
+    DB_HOST=inentriqdb.tallas.se
+    DB_PORT=3306
+    DB_NAME=ha_db
+    DB_USER=[username]
+    DB_PASSWORD=[password]
 </code>
 Then start execution with
-<code>
-python main.py
-<code>
+<code>python main.py<code>
 Alternative, if you do not use a .env file then execute with
-<code>
-python main.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
-<code>
+<code>python main.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]<code>
 
 
 ## Final thoughts
