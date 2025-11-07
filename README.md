@@ -5,6 +5,25 @@ Predict how many Watt the solar panel will produce coming day. Production is pre
 ## Description
 I'm sending data from Home Assistant (HA). By that data is collected and thus in some extent preprocessed in HA.
 
+## How to run
+Create a .env file and add the following parameters.
+<code>
+DB_HOST=inentriqdb.tallas.se
+DB_PORT=3306
+DB_NAME=ha_db
+DB_USER=[username]
+DB_PASSWORD=[password]
+</code>
+Then start execution with
+<code>
+python main.py
+<code>
+Alternative, if you do not use a .env file then execute with
+<code>
+python main.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
+<code>
+
+
 ## Final thoughts
 Unsure if to use AI to estimate coming PV Generation or to makes use of home assistant sensors to calculate how best to utilize a solar battery.
 
