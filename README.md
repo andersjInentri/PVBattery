@@ -12,13 +12,13 @@ By knowing the suns position, how cloudy it is supposed to be and the previous p
 
 **Summary of existing values for the project**
 Between 14:00 and 15:00 the day before, HA is preparing the following data for each 15 min, the coming day:
-- Timestamp (date and time for the row)
-- Price / kWh in SEK (can be negative but mostly positive. It is the variable price and does not include price for the net)
-- Cloudiness, in percent (Hourly value. 0 = clear sky, 100 = most cloudy)
-- Sun elevation (Hourly value. The suns vertical elevation from my address)
-- Sun azimuth (Hourly value. The suns horizontal direction from my hous, think compass direction)
-- Is daylight (Quarterly Value (another source than Sun Position!). Can be 0 or 1)
-- Power from Solar Panels (Quaterly value that HA writes at the actual time it has happened. This means that the value is 0 when the row is created but filled in at the actual date and time it has occured)
+- **Timestamp** Date and time for the row.
+- **Price / kWh in SEK** The variable price and does not include price for the net. Price can be negative but mostly positive. 
+- **Cloudiness in percent** Hourly value. 0 = clear sky, 100 = most cloudy.
+- **Sun elevation** Hourly value. The suns vertical elevation from my address.
+- **Sun azimuth** Hourly value. The suns horizontal direction from my hous, think compass direction.
+- **Is daylight** Quarterly Value (another source than Sun Position!). Can be 0 or 1.
+- **Power from Solar Panels** Quaterly value that HA writes at the actual time it has happened. This means that the value is 0 when the row is created but filled in at the actual date and time it has occured.
 
 ## Restriction
 **Note that this file can only be executed between 15:00 and 23:59!** This because next days weather is retrieved 14:00.
