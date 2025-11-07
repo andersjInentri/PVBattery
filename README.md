@@ -12,7 +12,7 @@ pip install -r requirements.txt
 ```
 
 ## How to run
-Create a .env file and add the following parameters.
+Create an .env file and add the following parameters.
 
 ```bash
 DB_HOST=inentriqdb.tallas.se
