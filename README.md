@@ -10,10 +10,10 @@ HA stores sun position for each hour, in elevation and azimuth. A view, to make 
 
 By knowing the suns position, how cloudy it is supposed to be and the previous production from solar panels due to conditions, it should be possible to estimate how much the solar panels are going to produce the coming day, both in watt and kWh.
 
-**Summary of existing values for the project**
+**Summary of existing values for the project**  
 Between 14:00 and 15:00 the day before, HA is preparing the following data for each 15 min, the coming day:
 - **Timestamp** Date and time for the row.
-- **Price / kWh in SEK** The variable price and does not include price for the net. Price can be negative but mostly positive. 
+- **Price / kWh in SEK** Quarterly value. The variable price and does not include price for the net. Price can be negative but mostly positive. 
 - **Cloudiness in percent** Hourly value. 0 = clear sky, 100 = most cloudy.
 - **Sun elevation** Hourly value. The suns vertical elevation from my address.
 - **Sun azimuth** Hourly value. The suns horizontal direction from my hous, think compass direction.
