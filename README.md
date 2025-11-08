@@ -47,7 +47,7 @@ DB_USER=[username]
 DB_PASSWORD=[password]
 ```
 
-The prediction, executed by main.py, is for haw many watt the solar panels will generate tomorrow. It checks if the needed pre-requisite data has been fetched in the database before predicting next days PV. It writes the values to an Excel-file, prediction.xlsx, in the sheet Pred_<tomorrow date>. Run the file with
+The prediction, executed by main.py, is for how many watt the solar panels will generate tomorrow. It checks if the needed pre-requisite data has been fetched in the database before predicting next days PV. It writes the values to an Excel-file, prediction.xlsx, in the sheet Pred_<tomorrow date>. Run the file with
 
 ```bash
 python main.py
