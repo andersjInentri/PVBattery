@@ -47,7 +47,7 @@ DB_USER=[username]
 DB_PASSWORD=[password]
 ```
 
-main.py is the prediction. It checks if the data has been fetched in the dataabase before predicting next days PV. It writes the values to an Excel-file, prediction.xlsx. Start execution with
+The prediction, executed by main.py, is for haw many watt the solar panels will generate tomorrow. It checks if the needed pre-requisite data has been fetched in the database before predicting next days PV. It writes the values to an Excel-file, prediction.xlsx, in the sheet Pred_<tomorrow date>. Run the file with
 
 ```bash
 python main.py
@@ -59,7 +59,7 @@ Alternative, if you do not use a .env file then execute with
 python main.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
 ```
 
-This command will retrive the actual value of today. It writes the values to the Excel-file prediction.xlsx
+The file db_reader, reads the today data from the database which would be the actual value of how many watt the solar panels have generated today. The file writes the values to the Excel-file prediction.xlsx in the sheet Utfall_<today date>.
 ```bash
 python db_reader.py 
 or
