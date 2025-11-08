@@ -76,7 +76,7 @@ Unsure if to use AI to estimate coming PV Generation or to makes use of home ass
 
 ### Cross-Validation (K-Fold)
 Avoid that the model is to specialized on the testdata
-I think it is an issue that I have data only from October. First i run this with these Features
+I think it is an issue that I have data only from October. First I run this with these Features
 ```bash
 FEATURES  = ["weather_cloud_pct", "weather_temperature", "weather_precip_mm", "weather_pressure_hpa", "weather_condition_text", "sun_azimuth_deg", "sun_elevation_deg", "is_daylight"]
 ```
