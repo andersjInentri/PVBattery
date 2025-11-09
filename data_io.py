@@ -12,11 +12,10 @@ load_dotenv()
 # Skapa dagens datum i textformat
 TODAY = (datetime.now()).strftime("%Y-%m-%d")
 
-
 def get_db_connection():
     # Skapa och returnera db connection till MariaDB
     try:
-        print(f"Connecting to MariaDB")
+        print(f"Öppnar connection till databas")
         conn = pymysql.connect(
             host=os.getenv('DB_HOST'),
             port=int(os.getenv('DB_PORT', 3306)),
@@ -24,11 +23,10 @@ def get_db_connection():
             password=os.getenv('DB_PASSWORD'),
             database=os.getenv('DB_NAME')
         )
-        print(f"Successfully connected to database: {os.getenv('DB_NAME')}")
+        print(f"Lyckades med connection till databas: {os.getenv('DB_NAME')}")
         return conn
     except pymysql.Error as e:
-        print(f"Error connecting to MariaDB: {e}")
-        raise
+        raise Exception(f"Fel vid öppnande av databas connection: {e}")
 
 
 def read_ai_features_view():
@@ -39,24 +37,22 @@ def read_ai_features_view():
         conn = get_db_connection()
 
         query = "SELECT * FROM ai_features_quarter_vw4 ORDER BY ts"
-        print(f"Executing query: {query}")
+        print(f"Kör sql: {query}")
 
         df = pd.read_sql(query, conn)
 
-        print(f"Successfully retrieved {len(df)} rows from ai_features_quarter_vw3")
+        print(f"Lyckades hämta {len(df)} rader från ai_features_quarter_vw3")
         return df
 
     except pymysql.Error as e:
-        print(f"Database error: {e}")
-        raise
+        raise Exception(f"Fel vid databas läsning: {e}")
     except Exception as e:
-        print(f"Error: {e}")
-        raise
+        raise Exception(f"Fel vid databas läsning: {e}")
     finally:
         # Stäng db connection
         if conn:
             conn.close()
-            print("Database connection closed")
+            print("Database förbindelse stängdes")
 
 
 def read_custom_query(query):
@@ -68,15 +64,51 @@ def read_custom_query(query):
         print(f"Successfully retrieved {len(df)} rows")
         return df
     except pymysql.Error as e:
-        print(f"Database error: {e}")
-        raise
+        raise Exception(f"Fel vid databas läsning: {e}")
     finally:
         if conn:
             conn.close()
 
 
+def write_to_excel(df, date_str, sheet_prefix='Data', filename='prediction.xlsx'):
+    """
+    Skriv en dataframe till Excel-fil.
+
+    Args:
+        df: DataFrame att skriva
+        date_str: Datum i format YYYY-MM-DD
+        sheet_prefix: Prefix för sheet-namn (default: 'Data')
+        filename: Namnet på Excel-filen (default: 'prediction.xlsx')
+    """
+    try:
+        sheet_name = f'{sheet_prefix}_{date_str}'
+
+        if os.path.exists(filename):
+            # Fil finns - använd openpyxl för att lägga till sheet
+            with pd.ExcelWriter(filename, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                df.to_excel(writer, index=True, sheet_name=sheet_name)
+            print(f"{sheet_prefix} för {date_str} tillagt i {filename}")
+        else:
+            # Fil finns inte - skapa ny med xlsxwriter och formatering
+            with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
+                df.to_excel(writer, index=True, sheet_name=sheet_name)
+
+                workbook = writer.book
+                worksheet = writer.sheets[sheet_name]
+
+                # Skapa format med komma som decimaltecken
+                number_format = workbook.add_format({'num_format': '#,##0.00'})
+
+                # Applicera format på numeriska kolumner (kolumn B och framåt, rad 1 och framåt)
+                worksheet.set_column('B:Z', None, number_format)
+
+            print(f"{sheet_prefix} för {date_str} sparad till ny fil {filename}")
+    except Exception as e:
+        raise Exception(f"Fel vid skrivning till Excel: {e}")
+
+
 if __name__ == "__main__":
-    # Fristående test av db_reader.py
+    # Fristående test av data_io.py
     try:
         # Hämta dataframes från view
         df = read_ai_features_view()
@@ -100,31 +132,8 @@ if __name__ == "__main__":
         # Använd semikolon som separator och komma som decimalpunkt, dvs format för Excel.
         print(today_output.to_csv(sep=';', index=True, decimal=','))
 
-        # Spara data - lägg till som nytt sheet i befintlig fil eller skapa ny fil
-        import os
-        filename = 'prediction.xlsx'
-
-        if os.path.exists(filename):
-            # Fil finns - använd openpyxl för att lägga till sheet
-            with pd.ExcelWriter(filename, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                today_output.to_excel(writer, index=True, sheet_name=f'Utfall_{TODAY}')
-            print(f"Utfall för {TODAY} tillagt i {filename}")
-        else:
-            # Fil finns inte - skapa ny med xlsxwriter och formatering
-            with pd.ExcelWriter(filename, engine='xlsxwriter') as writer:
-                today_output.to_excel(writer, index=True, sheet_name=f'Utfall_{TODAY}')
-
-                workbook = writer.book
-                worksheet = writer.sheets[f'Utfall_{TODAY}']
-
-                # Skapa format med komma som decimaltecken
-                number_format = workbook.add_format({'num_format': '#,##0.00'})
-
-                # Applicera format på numeriska kolumner (kolumn B och framåt, rad 1 och framåt)
-                worksheet.set_column('B:Z', None, number_format)
-
-            print(f"Utfall för {TODAY} sparad till ny fil {filename}")
-
+        # Spara data till Excel med den nya metoden
+        write_to_excel(today_output, TODAY, sheet_prefix='Utfall')
 
     except Exception as e:
-        print(f"Failed to read from database: {e}")
+        print(f"Error: {e}")
