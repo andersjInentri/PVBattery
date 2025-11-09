@@ -59,11 +59,11 @@ Alternative, if you do not use a .env file then execute with
 python main.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
 ```
 
-The file db_reader, reads the today data from the database which would be the actual value of how many watt the solar panels have generated today. The file writes the values to the Excel-file prediction.xlsx in the sheet Utfall_<today date>.
+The file data_io, reads the today data from the database which would be the actual value of how many watt the solar panels have generated today. The file writes the values to the Excel-file prediction.xlsx in the sheet Utfall_<today date>.
 ```bash
-python db_reader.py 
+python data_io.py 
 or
-python db_reader.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
+python data_io.py DB_HOST=inentriqdb.tallas.se DB_PORT=3306 DB_NAME=ha_db DB_USER=[username] DB_PASSWORD=[password]
 ```
 
 ## Final thoughts

@@ -1,8 +1,8 @@
 from datetime import datetime
 import os
-# Använd pymysql istället för MySQLdb för MariaDB connection.
-# Undgår kompileringsproblem med MariaDB.
-import pymysql
+# Använd SQLAlchemy för databas connection.
+# SQLAlchemy är rekommenderat av pandas och ger bättre kompatibilitet.
+from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
@@ -12,62 +12,49 @@ load_dotenv()
 # Skapa dagens datum i textformat
 TODAY = (datetime.now()).strftime("%Y-%m-%d")
 
-def get_db_connection():
-    # Skapa och returnera db connection till MariaDB
+def get_db_engine():
+    # Skapa och returnera SQLAlchemy engine till MariaDB
     try:
         print(f"Öppnar connection till databas")
-        conn = pymysql.connect(
-            host=os.getenv('DB_HOST'),
-            port=int(os.getenv('DB_PORT', 3306)),
-            user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASSWORD'),
-            database=os.getenv('DB_NAME')
+
+        # Skapa connection string för MariaDB med pymysql driver
+        connection_string = (
+            f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+            f"@{os.getenv('DB_HOST', 'inentriqdb.tallas.se')}:{os.getenv('DB_PORT', '3306')}/{os.getenv('DB_NAME', 'ha_db')}"
         )
-        print(f"Lyckades med connection till databas: {os.getenv('DB_NAME')}")
-        return conn
-    except pymysql.Error as e:
+
+        engine = create_engine(connection_string)
+
+        # Testa connection
+        with engine.connect() as conn:
+            print(f"Lyckades med connection till databas: {os.getenv('DB_NAME')}")
+
+        return engine
+    except Exception as e:
         raise Exception(f"Fel vid öppnande av databas connection: {e}")
 
 
 def read_ai_features_view():
-    # Läs data från ai_features_quarter_vw3 view.
+    # Läs data från ai_features_quarter_vw4 view.
     # Returnerar dataframe
-    conn = None
     try:
-        conn = get_db_connection()
+        engine = get_db_engine()
 
         query = "SELECT * FROM ai_features_quarter_vw4 ORDER BY ts"
         print(f"Kör sql: {query}")
 
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
 
-        print(f"Lyckades hämta {len(df)} rader från ai_features_quarter_vw3")
+        print(f"Lyckades hämta {len(df)} rader från ai_features_quarter_vw4")
+
+        # Stäng engine
+        engine.dispose()
+        print("Database förbindelse stängdes")
+
         return df
 
-    except pymysql.Error as e:
-        raise Exception(f"Fel vid databas läsning: {e}")
     except Exception as e:
         raise Exception(f"Fel vid databas läsning: {e}")
-    finally:
-        # Stäng db connection
-        if conn:
-            conn.close()
-            print("Database förbindelse stängdes")
-
-
-def read_custom_query(query):
-    # Kör en SQL och returnerar resultatet som en dataframe.
-    conn = None
-    try:
-        conn = get_db_connection()
-        df = pd.read_sql(query, conn)
-        print(f"Successfully retrieved {len(df)} rows")
-        return df
-    except pymysql.Error as e:
-        raise Exception(f"Fel vid databas läsning: {e}")
-    finally:
-        if conn:
-            conn.close()
 
 
 def write_to_excel(df, date_str, sheet_prefix='Data', filename='prediction.xlsx'):
