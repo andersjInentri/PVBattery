@@ -48,7 +48,7 @@ def process(df):
 
     return df
 
-def clean_data(df):
+def clean_and_prepare_data(df):
     try:    
         tomorrow_data = df.set_index(pd.to_datetime(df["ts"], errors="coerce")).sort_index()
         tomorrow_data = tomorrow_data.loc[TOMORROW]
@@ -90,9 +90,9 @@ def main():
 
         print(f"Kontroll att db förbindelse fungerade. Hämtade {len(dataframe)} rader från vy: ai_features_quarter_vw3")
 
-        # Step 2: CLEAN DATA eller rättare sagt kontrollera data. Vi vill veta att det finns data för träning och prediktion för imorgon
+        # Step 2: CLEAN DATA och PREPARE DATA rättare sagt kontrollera data. Vi vill veta att det finns data för träning och prediktion för imorgon
         # Raise exception med meddelande om det inte finns data för imorgon.
-        tomorrow_data = clean_data(dataframe)
+        tomorrow_data = clean_and_prepare_data(dataframe)
         
         # Step 3: PROCESS DATA.
         processed_dataframe = process(tomorrow_data)
