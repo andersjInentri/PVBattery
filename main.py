@@ -53,6 +53,7 @@ def train_and_validate_model(df):
     X_train = train_data[FEATURES]
     y_train = train_data[TARGET].astype(float)
    
+
     # Bygg Lasso-pipeline (skalning + L1-regression)
     pipe = Pipeline([
         ("scaler", StandardScaler()),
@@ -89,8 +90,8 @@ def train_and_validate_model(df):
         print(f"  {feat}: {coef:.4f}")    
 
     # Skapa och träna modellen
-    model = LinearRegression()
-    model.fit(X_train, y_train)
+    #model = LinearRegression()
+    #model.fit(X_train, y_train)
 
     # Valideringsdata
     X_val = validation_data[FEATURES]
@@ -98,7 +99,6 @@ def train_and_validate_model(df):
     # Sanity ändring: Sätt produktion till 0 när solen är under horisonten
     sun_val = validation_data["sun_elevation_deg"]
     
-
     # Testdata
     X_test = test_data[FEATURES]
     y_test = test_data[TARGET].astype(float)
@@ -106,10 +106,10 @@ def train_and_validate_model(df):
     sun_test = test_data["sun_elevation_deg"]
 
     # Utvärdera modellen
-    val_metrics = evaluate_model("Validation", model, X_val, y_val, sun_val)
-    test_metrics = evaluate_model("Test", model, X_test, y_test, sun_test)
+    val_metrics = evaluate_model("Validation", best_model, X_val, y_val, sun_val)
+    test_metrics = evaluate_model("Test", best_model, X_test, y_test, sun_test)
 
-    return model, val_metrics, test_metrics
+    return best_model, val_metrics, test_metrics
 
 def clean_and_prepare_data(df):
     print("Rensar och förbereder data...")
