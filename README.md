@@ -20,7 +20,7 @@ Between 14:00 and 15:00 the day before, HA is preparing the following data for e
 - **Temperature** Hourly value. Outdoor temperature precipiation in Celcius. Lower impact on PV Power.
 - **Condition** Hourly value. Precipation of an overall weather condition. This value is taken from the symbol, used on the html, and translated in to a number.
 - **Sun elevation** Hourly value. The suns vertical elevation from my address. Has a significant impact of PV Power.
-- **Sun azimuth** Hourly value. The suns horizontal direction from my hous, think compass direction. Has a significant impact of PV Power. This is an issue because it goes from 360 to 1 in south, it is re-calculated to cosinus and sinus.                 
+- **Sun azimuth** Hourly value. The suns horizontal direction from my hous, think compass direction. Has a significant impact of PV Power. This is an issue because it goes from 360 to 1 in south, it is re-calculated to cosinus and sinus in order to be useable.              
 - **Is daylight** Quarterly Value (another source than Sun Position!). Can be 0 or 1.
 - **Power from Solar Panels** Quaterly value that HA writes at the actual time it has happened. This means that the value is 0 when the row is created but filled in at the actual date and time it has occured.
 
