@@ -89,10 +89,6 @@ def train_and_validate_model(df):
     for feat, coef in zip(FEATURES, lasso.coef_):
         print(f"  {feat}: {coef:.4f}")    
 
-    # Skapa och träna modellen
-    #model = LinearRegression()
-    #model.fit(X_train, y_train)
-
     # Valideringsdata
     X_val = validation_data[FEATURES]
     y_val = validation_data[TARGET].astype(float)
