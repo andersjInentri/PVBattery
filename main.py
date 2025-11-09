@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from data_io import read_ai_features_view, write_to_excel
 
 TARGET = "pv_power_w_avg"
@@ -12,43 +13,86 @@ FEATURES  = ["weather_cloud_pct", "weather_temperature", "weather_precip_mm", "w
 # Skapa morgondagens datum i textformat
 TOMORROW = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 
-def process(df):
-    mask_train = df[TARGET].notna()
-    mask_pred  = df[TARGET].isna()
+def evaluate_model(name, model, X, y, sun_elevation=None):
+    print(f"Utvärderar modell på {name} data...")
+    predictions = model.predict(X)
+    # Sanity ändring: Sätt produktion till 0 när solen är under horisonten. Annars blir värdena helt fel.
+    if sun_elevation is not None:
+        sun_elev = np.array(sun_elevation, dtype=float)
+        # Sätt natt = 0
+        predictions = np.where(sun_elev <= 0, 0.0, predictions)
 
-    X_train = df.loc[mask_train, FEATURES]
-    y_train = df.loc[mask_train, TARGET].astype(float)
+    mae = mean_absolute_error(y, predictions)
+    mse = mean_squared_error(y, predictions)
+    r2 = r2_score(y, predictions)
 
-    # Ta bort NaN i träningen
-    train_ok = X_train.notna().all(axis=1)
-    X_train = X_train[train_ok]
-    y_train = y_train[train_ok]
+    print(f"{name} Evaluation: Mean Absolute Error (MAE): {mae:.2f} Mean Squared Error (MSE): {mse:.2f} R-squared (R2 ): {r2:.4f}")
+    print("-" * 30)
+    return {"split": name, "mae": mae, "mse": mse, "r2": r2}
+    
+def train_and_validate_model(df):
+    print("Tränar och validerar modell...")
+    # Splitta upp i träningsdata och prediktionsdata. Föutsätter att df innehåller både historisk data med target-värde och framtida data utan target-värde.
+    # Förutsättning: Datan ska tidigare vara indexerad och sorterad på timestamp.
+    total_rows = len(df)  # Exkludera de sista 96 raderna (data innehåller ju tom mål-data (pv_power_w_avg) för morgondagen)
+    train_end = int(0.8 * total_rows)
+    val_end = int(0.9 * total_rows)
 
-    # Lägg till intercept-kolumn (1:or)
-    X_design = np.column_stack([np.ones(len(X_train)), X_train.values])
+    print(f"Totalt antal rader: {total_rows}, Träningsdata: 0 till {train_end}, Valideringsdata: {train_end} till {val_end}, Testdata: {val_end} till {total_rows}")
 
-    # Minsta-kvadrat (normalekvation / lstsq)
-    w, *_ = np.linalg.lstsq(X_design, y_train.values, rcond=None)
-    intercept = w[0]
-    coefs = w[1:]
+    train_data = df.iloc[:train_end]
+    validation_data = df.iloc[train_end:val_end]
+    test_data = df.iloc[val_end:]
 
-    print("Intercept:", intercept)
-    print(pd.Series(coefs, index=FEATURES))
+    # Träningsdata
+    X_train = train_data[FEATURES]
+    y_train = train_data[TARGET].astype(float)
 
-    # Prediktion
-    X_pred = df.loc[mask_pred, FEATURES].copy()
-    X_pred = X_pred.fillna(X_train.mean())
-    X_pred_design = np.column_stack([np.ones(len(X_pred)), X_pred.values])
-    y_hat = X_pred_design @ w
+    # Skapa och träna modellen
+    model = LinearRegression()
+    model.fit(X_train, y_train)
 
-    # Bara positiva värden och noll vid natt
-    y_hat = np.where(df.loc[mask_pred, "sun_elevation_deg"].values <= 0, 0.0, y_hat)
-    y_hat = np.clip(y_hat, 0, None)
-    df.loc[mask_pred, TARGET] = y_hat
+    # Valideringsdata
+    X_val = validation_data[FEATURES]
+    y_val = validation_data[TARGET].astype(float)
+    # Sanity ändring: Sätt produktion till 0 när solen är under horisonten
+    sun_val = validation_data["sun_elevation_deg"]
+    
 
-    return df
+    # Testdata
+    X_test = test_data[FEATURES]
+    y_test = test_data[TARGET].astype(float)
+    # Sanity ändring: Sätt produktion till 0 när solen är under horisonten
+    sun_test = test_data["sun_elevation_deg"]
 
-def clean_and_prepare_data(df):
+    # Utvärdera modellen
+    val_metrics = evaluate_model("Validation", model, X_val, y_val, sun_val)
+    test_metrics = evaluate_model("Test", model, X_test, y_test, sun_test)
+
+    return model, val_metrics, test_metrics
+
+def new_clean_and_prepare_data(df):
+    print("Rensar och förbereder data...")
+    try:    
+        # Viktigt för hela flödet att index är timestamp och sorterat!
+        prepared_data = df.set_index(pd.to_datetime(df["ts"], errors="coerce")).sort_index()
+        # Det går att ha med sun_azimuth_deg som feature men eftersom huset är delvis mot söder blir azimuth fel då det går från 360 till 1 i söder.
+        # Det förstör en linjär regression. Räkna om till sinus och cosinus.
+        prepared_data["sun_azimuth_sin"] = np.sin(np.radians(prepared_data["sun_azimuth_deg"]))
+        prepared_data["sun_azimuth_cos"] = np.cos(np.radians(prepared_data["sun_azimuth_deg"]))
+
+        # Ta bort dagens data för dagens datum eftersom den är ofullständig, mål-kolumnen är inte komplett och innehåller NULL för framtida tider idag.
+        yesterday = datetime.now() - timedelta(days=1)
+        prepared_data = prepared_data.loc[prepared_data.index.date <= yesterday.date()]
+        return prepared_data
+    except Exception as e:
+        if e.args[0] == TOMORROW:
+            raise Exception(f"Fel vid datarensning. {e} Det finns ingen data för morgondagen ({TOMORROW}) i databasen. Denna körning kan bara göras mellan 15:00 och 23:00 dagen innan för att få korrekt prediktion för morgondagen.")
+        else:
+            raise Exception(f"Fel vid datarensning: {e}")
+
+def tomorrow_data(df):
+    print("Extraherar data för morgondagen...")
     try:    
         tomorrow_data = df.set_index(pd.to_datetime(df["ts"], errors="coerce")).sort_index()
         tomorrow_data = tomorrow_data.loc[TOMORROW]
@@ -66,6 +110,7 @@ def clean_and_prepare_data(df):
 
 
 def output(output_dataframe):
+    print("Skriver ut prediktion för morgondagen...")
     output_dataframe = output_dataframe.set_index(pd.to_datetime(output_dataframe["ts"], errors="coerce")).sort_index()
 
     tomorrow_output = output_dataframe.loc[TOMORROW].between_time("00:00", "23:59", inclusive="left")[
@@ -81,24 +126,50 @@ def output(output_dataframe):
     # Spara data till Excel med den nya metoden
     write_to_excel(tomorrow_output, TOMORROW, sheet_prefix='Prediction')
 
+def run_model(model, tomorrow_df):
+    print("Kör modell för morgondagens prediktion...")
+    X_tomorrow = tomorrow_df[FEATURES]
+    predictions = model.predict(X_tomorrow)
+
+    # Sanity ändring: Sätt produktion till 0 när solen är under horisonten
+    # Plocka ut solhöjden som numpy-array
+    sun_elev = tomorrow_df["sun_elevation_deg"].astype(float).values
+
+    # Sätt all produktion till 0 när solen är under horisonten
+    predictions = np.where(sun_elev <= 0, 0.0, predictions)
+
+    result = tomorrow_df.copy()
+    result[TARGET] = predictions
+    return result
+
 def main():
-    print("Starting PVBattery project...")
+    print("Startar PVBattery...")
 
     try:
         # Step 1: READ DATA. Importera data - Läs data från en databas-vy där data är samlad per kvart.
-        dataframe = read_ai_features_view()
+        raw_dataframe = read_ai_features_view()
 
-        print(f"Kontroll att db förbindelse fungerade. Hämtade {len(dataframe)} rader från vy: ai_features_quarter_vw3")
+        print(f"Kontroll att db-förbindelse fungerade. Hämtade {len(raw_dataframe)} rader från vy: ai_features_quarter_vw3")
 
         # Step 2: CLEAN DATA och PREPARE DATA rättare sagt kontrollera data. Vi vill veta att det finns data för träning och prediktion för imorgon
         # Raise exception med meddelande om det inte finns data för imorgon.
-        tomorrow_data = clean_and_prepare_data(dataframe)
-        
-        # Step 3: PROCESS DATA.
-        processed_dataframe = process(tomorrow_data)
+        tomorrow_df = tomorrow_data(raw_dataframe)
+        cleaned_df = new_clean_and_prepare_data(raw_dataframe)
+
+        # Step 3: TRAIN MODEL.
+        # Ta bort sista 96 raderna (data innehåller ju tom mål-data (pv_power_w_avg) för morgondagen)
+        cleaned_df = cleaned_df.iloc[:-96]   
+        trained_model, val_metrics, test_metrics = train_and_validate_model(cleaned_df)
+
+        # Step 3: RUN MODEL. Prediktion för morgondagen
+        predictions_df = run_model(trained_model, tomorrow_df)
 
         # Step 4: OUTPUT RESULT. Filtrera data för morgondagen
-        output(processed_dataframe)
+        output(predictions_df)
+
+        tomorrow_df["energy_kWh"] = predictions_df["pv_power_w_avg"].clip(lower=0) * 0.25 / 1000
+        total_kWh = tomorrow_df["energy_kWh"].sum()
+        print("Förväntad produktion imorgon:", total_kWh, "kWh")
     except Exception as e:
         print(f"Error: {e}")
 

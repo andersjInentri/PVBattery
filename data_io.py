@@ -15,7 +15,7 @@ TODAY = (datetime.now()).strftime("%Y-%m-%d")
 def get_db_engine():
     # Skapa och returnera SQLAlchemy engine till MariaDB
     try:
-        print(f"Öppnar connection till databas")
+        print("Öppnar connection till databas")
 
         # Skapa connection string för MariaDB med pymysql driver
         connection_string = (
@@ -40,8 +40,8 @@ def read_ai_features_view():
     try:
         engine = get_db_engine()
 
-        query = "SELECT * FROM ai_features_quarter_vw4 ORDER BY ts"
-        print(f"Kör sql: {query}")
+        query = "SELECT * FROM ai_features_quarter_vw4 ORDER BY ts;"
+        #print(f"Kör sql: {query}")
 
         df = pd.read_sql(query, engine)
 
