@@ -58,7 +58,8 @@ def train_and_validate_model(df):
         ("scaler", StandardScaler()),
         ("lasso", Lasso(max_iter=10000, random_state=42))
     ])
- # Hyperparametrar att testa för Lasso (L1-styrka)
+    
+    # Hyperparametrar att testa för Lasso (L1-styrka)
     param_grid = {
         "lasso__alpha": [0.001, 0.01, 0.1, 1.0, 10.0]
     }
