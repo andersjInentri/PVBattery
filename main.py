@@ -5,13 +5,18 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from data_io import read_ai_features_view, write_to_excel
+from sklearn.linear_model import Lasso
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 
 TARGET = "pv_power_w_avg"
 # Bland features som påverkar är azimuth_deg problematisk då den går från 360 till 1 vid söder. Detta förstör en linjär regression. Därför finns cosinus och sinus av azimuth med istället.
-FEATURES  = ["weather_cloud_pct", "weather_temperature", "weather_precip_mm", "weather_pressure_hpa", "weather_condition_text", "sun_azimuth_sin", "sun_azimuth_cos", "is_daylight"]
+#FEATURES  = ["weather_cloud_pct", "weather_temperature", "weather_precip_mm", "weather_pressure_hpa", "weather_condition_text", "sun_azimuth_sin", "sun_azimuth_cos", "sun_elevation_deg", "is_daylight"]
+FEATURES  = ["weather_cloud_pct", "weather_condition_text", "sun_azimuth_sin", "sun_azimuth_cos", "sun_elevation_deg", "is_daylight"]
 
 # Skapa morgondagens datum i textformat
 TOMORROW = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
 
 def evaluate_model(name, model, X, y, sun_elevation=None):
     print(f"Utvärderar modell på {name} data...")
@@ -47,6 +52,40 @@ def train_and_validate_model(df):
     # Träningsdata
     X_train = train_data[FEATURES]
     y_train = train_data[TARGET].astype(float)
+   
+    # Bygg Lasso-pipeline (skalning + L1-regression)
+    pipe = Pipeline([
+        ("scaler", StandardScaler()),
+        ("lasso", Lasso(max_iter=10000, random_state=42))
+    ])
+ # Hyperparametrar att testa för Lasso (L1-styrka)
+    param_grid = {
+        "lasso__alpha": [0.001, 0.01, 0.1, 1.0, 10.0]
+    }
+
+    # TimeSeriesSplit så vi inte blandar framtid och dåtid i CV
+    tscv = TimeSeriesSplit(n_splits=5)
+
+    grid = GridSearchCV(
+        pipe,
+        param_grid,
+        cv=tscv,
+        scoring="neg_mean_absolute_error",
+        n_jobs=-1,
+    )
+
+    print("Kör GridSearchCV för att hitta bästa alpha för Lasso...")
+    grid.fit(X_train, y_train)
+
+    best_model = grid.best_estimator_
+    best_alpha = grid.best_params_["lasso__alpha"]
+    print(f"Bästa alpha för Lasso: {best_alpha}")
+
+    # Visa koefficienter (efter skalning) för att se vilka features som "överlever"
+    lasso = best_model.named_steps["lasso"]
+    print("Lasso-koefficienter:")
+    for feat, coef in zip(FEATURES, lasso.coef_):
+        print(f"  {feat}: {coef:.4f}")    
 
     # Skapa och träna modellen
     model = LinearRegression()
@@ -71,7 +110,7 @@ def train_and_validate_model(df):
 
     return model, val_metrics, test_metrics
 
-def new_clean_and_prepare_data(df):
+def clean_and_prepare_data(df):
     print("Rensar och förbereder data...")
     try:    
         # Viktigt för hela flödet att index är timestamp och sorterat!
@@ -154,7 +193,7 @@ def main():
         # Step 2: CLEAN DATA och PREPARE DATA rättare sagt kontrollera data. Vi vill veta att det finns data för träning och prediktion för imorgon
         # Raise exception med meddelande om det inte finns data för imorgon.
         tomorrow_df = tomorrow_data(raw_dataframe)
-        cleaned_df = new_clean_and_prepare_data(raw_dataframe)
+        cleaned_df = clean_and_prepare_data(raw_dataframe)
 
         # Step 3: TRAIN MODEL.
         # Ta bort sista 96 raderna (data innehåller ju tom mål-data (pv_power_w_avg) för morgondagen)
@@ -165,11 +204,15 @@ def main():
         predictions_df = run_model(trained_model, tomorrow_df)
 
         # Step 4: OUTPUT RESULT. Filtrera data för morgondagen
+        # Skriv ut prediktion för morgondagen i CSV-format, till excel och console
         output(predictions_df)
 
+        # Räkna ut total produktion imorgon i kWh
         tomorrow_df["energy_kWh"] = predictions_df["pv_power_w_avg"].clip(lower=0) * 0.25 / 1000
         total_kWh = tomorrow_df["energy_kWh"].sum()
         print("Förväntad produktion imorgon:", total_kWh, "kWh")
+
+
     except Exception as e:
         print(f"Error: {e}")
 
