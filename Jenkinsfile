@@ -19,6 +19,10 @@ pipeline {
         AZURE_CREDENTIALS = credentials('azure-service-principal')
         AZURE_TENANT_ID = '85bd1e6b-a996-46bc-92c8-eb24dc3916fc'
         GITHUB_TOKEN = credentials('github-token')  // GitHub Personal Access Token
+
+        // Database credentials (store these in Jenkins as secrets)
+        DB_CREDENTIALS = credentials('pvbattery-db-credentials')  // Username and password
+        API_KEY_SECRET = credentials('pvbattery-api-key')  // API key for the service
     }
 
     // Only build azure-api branch
@@ -116,13 +120,27 @@ pipeline {
                                 --registry-username ${GITHUB_USERNAME} \\
                                 --registry-password \$GITHUB_TOKEN \\
                                 --min-replicas 0 \\
-                                --max-replicas 1
+                                --max-replicas 1 \\
+                                --env-vars \\
+                                    "DB_HOST=inentriqdb.tallas.se" \\
+                                    "DB_PORT=3306" \\
+                                    "DB_NAME=ha_db" \\
+                                    "DB_USER=\$DB_CREDENTIALS_USR" \\
+                                    "DB_PASSWORD=\$DB_CREDENTIALS_PSW" \\
+                                    "API_KEY=\$API_KEY_SECRET"
                         else
-                            echo "Container App exists. Updating with new image..."
+                            echo "Container App exists. Updating with new image and environment variables..."
                             az containerapp update \\
                                 --name ${CONTAINER_APP_NAME} \\
                                 --resource-group ${RESOURCE_GROUP} \\
-                                --image ${FULL_IMAGE_NAME}:${IMAGE_TAG}
+                                --image ${FULL_IMAGE_NAME}:${IMAGE_TAG} \\
+                                --set-env-vars \\
+                                    "DB_HOST=inentriqdb.tallas.se" \\
+                                    "DB_PORT=3306" \\
+                                    "DB_NAME=ha_db" \\
+                                    "DB_USER=\$DB_CREDENTIALS_USR" \\
+                                    "DB_PASSWORD=\$DB_CREDENTIALS_PSW" \\
+                                    "API_KEY=\$API_KEY_SECRET"
                         fi
                     """
                 }
