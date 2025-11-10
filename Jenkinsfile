@@ -135,7 +135,7 @@ pipeline {
                     echo "Verifying deployment..."
                     sh """
                         sleep 30
-                        curl -f https://${CONTAINER_APP_NAME}.${AZURE_LOCATION}.azurecontainerapps.io/health || exit 1
+                        curl -f https://pvbattery-api.mangoground-be91a876.swedencentral.azurecontainerapps.io/health || exit 1
                     """
                 }
             }
@@ -147,7 +147,7 @@ pipeline {
             echo "Deployment successful!"
             echo "Image: ${FULL_IMAGE_NAME}:${IMAGE_TAG}"
             echo "GHCR URL: https://github.com/${GITHUB_USERNAME}/PVBattery/pkgs/container/${IMAGE_NAME}"
-            echo "API URL: https://${CONTAINER_APP_NAME}.${AZURE_LOCATION}.azurecontainerapps.io"
+            echo "API URL: https://pvbattery-api.mangoground-be91a876.swedencentral.azurecontainerapps.io"
         }
         failure {
             echo "Deployment failed! Check logs above for details."
