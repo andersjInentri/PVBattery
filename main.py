@@ -12,7 +12,9 @@ from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 TARGET = "pv_power_w_avg"
 # Bland features som påverkar är azimuth_deg problematisk då den går från 360 till 1 vid söder. Detta förstör en linjär regression. Därför finns cosinus och sinus av azimuth med istället.
 #FEATURES  = ["weather_cloud_pct", "weather_temperature", "weather_precip_mm", "weather_pressure_hpa", "weather_condition_text", "sun_azimuth_sin", "sun_azimuth_cos", "sun_elevation_deg", "is_daylight"]
-FEATURES  = ["weather_cloud_pct", "weather_condition_text", "sun_azimuth_sin", "sun_azimuth_cos", "sun_elevation_deg", "is_daylight"]
+# Maximalt utökade features med extremt hög molnighetspåverkan
+FEATURES  = ["weather_cloud_pct", "weather_condition_text", "sun_azimuth_sin", "sun_azimuth_cos", "sun_elevation_deg", "is_daylight",
+             "cloud_sun_interaction", "cloud_squared", "cloud_cubed", "cloud_fourth", "cloud_sun_squared", "cloud_sun_cubed", "cloud_sun_fourth"]
 
 # Skapa morgondagens datum i textformat
 TOMORROW = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -57,12 +59,14 @@ def train_and_validate_model(df):
     # Bygg Lasso-pipeline (skalning + L1-regression)
     pipe = Pipeline([
         ("scaler", StandardScaler()),
-        ("lasso", Lasso(max_iter=10000, random_state=42))
+        ("lasso", Lasso(max_iter=50000, random_state=42))  # Ökat från 10000 till 50000
     ])
-    
+
     # Hyperparametrar att testa för Lasso (L1-styrka)
+    # Utökat intervall med fler mellanvärden för att hitta optimal regularisering
+    # Höga alpha-värden ger mer regularisering och dämpning
     param_grid = {
-        "lasso__alpha": [0.001, 0.01, 0.1, 1.0, 10.0]
+        "lasso__alpha": [0.001, 0.01, 0.1, 1.0, 5.0, 10.0, 20.0, 50.0, 100.0]
     }
 
     # TimeSeriesSplit så vi inte blandar framtid och dåtid i CV
@@ -109,13 +113,29 @@ def train_and_validate_model(df):
 
 def clean_and_prepare_data(df):
     print("Rensar och förbereder data...")
-    try:    
+    try:
         # Viktigt för hela flödet att index är timestamp och sorterat!
         prepared_data = df.set_index(pd.to_datetime(df["ts"], errors="coerce")).sort_index()
         # Det går att ha med sun_azimuth_deg som feature men eftersom huset är delvis mot söder blir azimuth fel då det går från 360 till 1 i söder.
         # Det förstör en linjär regression. Räkna om till sinus och cosinus.
         prepared_data["sun_azimuth_sin"] = np.sin(np.radians(prepared_data["sun_azimuth_deg"]))
         prepared_data["sun_azimuth_cos"] = np.cos(np.radians(prepared_data["sun_azimuth_deg"]))
+
+        # Lägg till flera interaktionstermer för att kraftigt öka molnighetens påverkan
+        # Interaktion mellan molnighet och solhöjd (molnighet har större effekt vid hög solhöjd)
+        prepared_data["cloud_sun_interaction"] = prepared_data["weather_cloud_pct"] * prepared_data["sun_elevation_deg"]
+        # Kvadratisk term för molnighet (icke-linjär effekt)
+        prepared_data["cloud_squared"] = prepared_data["weather_cloud_pct"] ** 2
+        # Kubisk term för molnighet (ännu starkare icke-linjär effekt vid hög molnighet)
+        prepared_data["cloud_cubed"] = prepared_data["weather_cloud_pct"] ** 3
+        # Fjärde graden för molnighet (extremt stark dämpning vid hög molnighet)
+        prepared_data["cloud_fourth"] = prepared_data["weather_cloud_pct"] ** 4
+        # Kvadratisk interaktion mellan moln och sol (exponentiell dämpning)
+        prepared_data["cloud_sun_squared"] = prepared_data["weather_cloud_pct"] * (prepared_data["sun_elevation_deg"] ** 2)
+        # Kubisk interaktion mellan moln och sol (extremt stark dämpning vid moln)
+        prepared_data["cloud_sun_cubed"] = prepared_data["weather_cloud_pct"] * (prepared_data["sun_elevation_deg"] ** 3)
+        # Fjärde gradens interaktion mellan moln och sol (maximal dämpning vid moln)
+        prepared_data["cloud_sun_fourth"] = prepared_data["weather_cloud_pct"] * (prepared_data["sun_elevation_deg"] ** 4)
 
         # Ta bort dagens data för dagens datum eftersom den är ofullständig, mål-kolumnen är inte komplett och innehåller NULL för framtida tider idag.
         yesterday = datetime.now() - timedelta(days=1)
@@ -129,7 +149,7 @@ def clean_and_prepare_data(df):
 
 def tomorrow_data(df):
     print("Extraherar data för morgondagen...")
-    try:    
+    try:
         tomorrow_data = df.set_index(pd.to_datetime(df["ts"], errors="coerce")).sort_index()
         tomorrow_data = tomorrow_data.loc[TOMORROW]
         print(f"Hittade {len(tomorrow_data)} rader för {TOMORROW}")
@@ -137,6 +157,16 @@ def tomorrow_data(df):
         # Eftersom huset är delvis mot söder blir azimuth_deg fel då det går från 360 till 1 i söder. Det förstör en linjär regression. Räkna om till sinus och cosinus.
         tomorrow_data["sun_azimuth_sin"] = np.sin(np.radians(tomorrow_data["sun_azimuth_deg"]))
         tomorrow_data["sun_azimuth_cos"] = np.cos(np.radians(tomorrow_data["sun_azimuth_deg"]))
+
+        # Lägg till samma interaktionstermer som i träningsdatan
+        tomorrow_data["cloud_sun_interaction"] = tomorrow_data["weather_cloud_pct"] * tomorrow_data["sun_elevation_deg"]
+        tomorrow_data["cloud_squared"] = tomorrow_data["weather_cloud_pct"] ** 2
+        tomorrow_data["cloud_cubed"] = tomorrow_data["weather_cloud_pct"] ** 3
+        tomorrow_data["cloud_fourth"] = tomorrow_data["weather_cloud_pct"] ** 4
+        tomorrow_data["cloud_sun_squared"] = tomorrow_data["weather_cloud_pct"] * (tomorrow_data["sun_elevation_deg"] ** 2)
+        tomorrow_data["cloud_sun_cubed"] = tomorrow_data["weather_cloud_pct"] * (tomorrow_data["sun_elevation_deg"] ** 3)
+        tomorrow_data["cloud_sun_fourth"] = tomorrow_data["weather_cloud_pct"] * (tomorrow_data["sun_elevation_deg"] ** 4)
+
         return tomorrow_data
     except Exception as e:
         if e.args[0] == TOMORROW:
@@ -170,6 +200,13 @@ def run_model(model, tomorrow_df):
     # Sanity ändring: Sätt produktion till 0 när solen är under horisonten
     # Plocka ut solhöjden som numpy-array
     sun_elev = tomorrow_df["sun_elevation_deg"].astype(float).values
+
+    # Explicit molnighetsdämpning: Applicera en dämpningsfaktor baserat på molnighet
+    # Vid 100% moln: dämpning med 60% (faktor 0.4)
+    # Vid 0% moln: ingen dämpning (faktor 1.0)
+    cloud_pct = tomorrow_df["weather_cloud_pct"].astype(float).values
+    cloud_damping_factor = 1.0 - (cloud_pct / 100.0) * 0.6
+    predictions = predictions * cloud_damping_factor
 
     # Sätt all produktion till 0 när solen är under horisonten
     predictions = np.where(sun_elev <= 0, 0.0, predictions)
