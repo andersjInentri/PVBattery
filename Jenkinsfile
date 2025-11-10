@@ -51,8 +51,14 @@ pipeline {
                 script {
                     echo "Setting up Docker Buildx for multi-platform builds..."
                     sh """
-                        # Create buildx builder if it doesn't exist
-                        docker buildx create --name mybuilder --use || docker buildx use mybuilder
+                        # Check if builder exists, if not create it
+                        if ! docker buildx inspect mybuilder &> /dev/null; then
+                            echo "Creating new buildx builder 'mybuilder'..."
+                            docker buildx create --name mybuilder --use
+                        else
+                            echo "Buildx builder 'mybuilder' already exists, using it..."
+                            docker buildx use mybuilder
+                        fi
                         docker buildx inspect --bootstrap
                     """
                 }
