@@ -8,9 +8,10 @@
    - ⚠️ INGEN Azure Container Registry behövs - Docker image byggs på Jenkins och laddas upp direkt
 
 2. **Jenkins Requirements:**
-   - Docker installerat på Jenkins agent
+   - Docker installerat på Jenkins agent (med Docker Buildx för multi-platform builds)
    - Azure CLI installerat på Jenkins agent
    - Git plugin
+   - ⚠️ **OBS:** Jenkins kan köra på ARM64 (t.ex. Raspberry Pi) - Docker Buildx bygger automatiskt för både AMD64 (Azure) och ARM64
 
 ## Steg 1: Skapa Azure Resources
 
@@ -49,6 +50,13 @@ Gå till Jenkins > Manage Jenkins > Credentials > Add Credentials
 - **ID:** `azure-service-principal`
 - **Username:** `appId` (från Service Principal)
 - **Password:** `password` (från Service Principal)
+
+### 2.2 GitHub Personal Access Token (för GHCR)
+- **Kind:** Secret text
+- **ID:** `github-token`
+- **Secret:** Din GitHub Personal Access Token (classic) med scopes: `write:packages`, `read:packages`, `delete:packages`
+- **Beskrivning:** GitHub Container Registry Token
+- Skapa token på: https://github.com/settings/tokens
 
 ## Steg 3: Uppdatera Jenkinsfile
 
@@ -138,6 +146,11 @@ curl -H "X-API-Key: <your-api-key>" https://pvbattery-api.westeurope.azurecontai
 - Verifiera att Jenkins-användaren har behörighet att köra Docker-kommandon
 - Testa: `docker ps` från Jenkins agent
 
+### Build fails med "image OS/Arc must be linux/amd64 but found linux/arm64"
+- Detta händer om Jenkins kör på ARM64 (t.ex. Raspberry Pi) utan Docker Buildx
+- Lösning: Jenkinsfile använder nu `docker buildx` för multi-platform builds
+- Första gången kan ta längre tid eftersom QEMU emulation behöver sättas upp
+
 ### Deploy fails med "az containerapp up"
 - Kontrollera Service Principal har rätt behörigheter
 - Verifiera att Azure CLI är installerat på Jenkins agent
@@ -146,6 +159,11 @@ curl -H "X-API-Key: <your-api-key>" https://pvbattery-api.westeurope.azurecontai
 ### Container app startar inte
 - Kontrollera logs: `az containerapp logs show --name pvbattery-api --resource-group <your-rg> --tail 100`
 - Verifiera environment variables och secrets
+
+### GitHub Container Registry authentication fails
+- Kontrollera att GitHub Personal Access Token har rätt scopes (`write:packages`, `read:packages`)
+- Verifiera att token är korrekt sparad i Jenkins credentials med ID `github-token`
+- Efter första push, gör paketet publikt på GitHub: https://github.com/andersjinentri?tab=packages
 
 ### Health check fails
 - Kontrollera att port 8000 är korrekt i Container App
