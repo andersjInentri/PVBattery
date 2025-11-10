@@ -2,10 +2,12 @@ pipeline {
     agent any
 
     environment {
-        // Docker image settings
+        // GitHub Container Registry settings
+        GHCR_REGISTRY = 'ghcr.io'
+        GITHUB_USERNAME = 'andersjinentri'  // Change to lowercase GitHub username
         IMAGE_NAME = 'pvbattery-api'
+        FULL_IMAGE_NAME = "${GHCR_REGISTRY}/${GITHUB_USERNAME}/${IMAGE_NAME}"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
-        DOCKER_TAR = "pvbattery-api-${env.BUILD_NUMBER}.tar"
 
         // Azure Container Apps settings
         RESOURCE_GROUP = 'rg-inentriq-aca'
@@ -16,6 +18,7 @@ pipeline {
         // Credentials stored in Jenkins
         AZURE_CREDENTIALS = credentials('azure-service-principal')
         AZURE_TENANT_ID = '85bd1e6b-a996-46bc-92c8-eb24dc3916fc'
+        GITHUB_TOKEN = credentials('github-token')  // GitHub Personal Access Token
     }
 
     // Only build azure-api branch
@@ -35,21 +38,33 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
+                    echo "Building Docker image: ${FULL_IMAGE_NAME}:${IMAGE_TAG}"
                     sh """
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                        docker build -t ${FULL_IMAGE_NAME}:${IMAGE_TAG} .
+                        docker tag ${FULL_IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}:latest
                     """
                 }
             }
         }
 
-        stage('Save Docker Image') {
+        stage('Login to GitHub Container Registry') {
             steps {
                 script {
-                    echo "Saving Docker image to tar file: ${DOCKER_TAR}"
+                    echo "Logging in to GitHub Container Registry..."
                     sh """
-                        docker save ${IMAGE_NAME}:${IMAGE_TAG} -o ${DOCKER_TAR}
+                        echo \$GITHUB_TOKEN | docker login ${GHCR_REGISTRY} -u ${GITHUB_USERNAME} --password-stdin
+                    """
+                }
+            }
+        }
+
+        stage('Push to GitHub Container Registry') {
+            steps {
+                script {
+                    echo "Pushing image to GHCR: ${FULL_IMAGE_NAME}:${IMAGE_TAG}"
+                    sh """
+                        docker push ${FULL_IMAGE_NAME}:${IMAGE_TAG}
+                        docker push ${FULL_IMAGE_NAME}:latest
                     """
                 }
             }
@@ -74,14 +89,28 @@ pipeline {
                 script {
                     echo "Deploying to Azure Container Apps: ${CONTAINER_APP_NAME}"
                     sh """
-                        az containerapp up \\
-                            --name ${CONTAINER_APP_NAME} \\
-                            --resource-group ${RESOURCE_GROUP} \\
-                            --environment ${CONTAINER_APP_ENV} \\
-                            --image ${IMAGE_NAME}:${IMAGE_TAG} \\
-                            --source ${DOCKER_TAR} \\
-                            --target-port 8000 \\
-                            --ingress external
+                        # Check if container app exists
+                        if ! az containerapp show --name ${CONTAINER_APP_NAME} --resource-group ${RESOURCE_GROUP} &> /dev/null; then
+                            echo "Container App does not exist. Creating..."
+                            az containerapp create \\
+                                --name ${CONTAINER_APP_NAME} \\
+                                --resource-group ${RESOURCE_GROUP} \\
+                                --environment ${CONTAINER_APP_ENV} \\
+                                --image ${FULL_IMAGE_NAME}:${IMAGE_TAG} \\
+                                --target-port 8000 \\
+                                --ingress external \\
+                                --registry-server ${GHCR_REGISTRY} \\
+                                --registry-username ${GITHUB_USERNAME} \\
+                                --registry-password \$GITHUB_TOKEN \\
+                                --min-replicas 1 \\
+                                --max-replicas 3
+                        else
+                            echo "Container App exists. Updating with new image..."
+                            az containerapp update \\
+                                --name ${CONTAINER_APP_NAME} \\
+                                --resource-group ${RESOURCE_GROUP} \\
+                                --image ${FULL_IMAGE_NAME}:${IMAGE_TAG}
+                        fi
                     """
                 }
             }
@@ -102,8 +131,10 @@ pipeline {
 
     post {
         success {
-            echo "Deployment successful! Image: ${IMAGE_NAME}:${IMAGE_TAG}"
-            echo "Access your API at: https://${CONTAINER_APP_NAME}.${AZURE_LOCATION}.azurecontainerapps.io"
+            echo "Deployment successful!"
+            echo "Image: ${FULL_IMAGE_NAME}:${IMAGE_TAG}"
+            echo "GHCR URL: https://github.com/${GITHUB_USERNAME}/PVBattery/pkgs/container/${IMAGE_NAME}"
+            echo "API URL: https://${CONTAINER_APP_NAME}.${AZURE_LOCATION}.azurecontainerapps.io"
         }
         failure {
             echo "Deployment failed! Check logs above for details."
@@ -111,7 +142,7 @@ pipeline {
         always {
             script {
                 sh """
-                    rm -f ${DOCKER_TAR}
+                    docker logout ${GHCR_REGISTRY} || true
                     az logout || true
                 """
             }
