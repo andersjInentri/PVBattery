@@ -134,7 +134,7 @@ def write_predictions_to_db(predictions_df):
         # Kolumner i prediction-tabellen:
         # ts, price_sek_per_kwh, pv_power_w_avg, weather_cloud_pct, weather_pressure_hpa,
         # weather_precip_mm, weather_temperature, weather_condition_text, weather_condition_text2,
-        # sun_azimuth_deg, sun_elevation_deg, is_daylight
+        # sun_azimuth_deg, sun_elevation_deg, is_daylight, updated_ts
 
         available_columns = ['ts', 'pv_power_w_avg', 'weather_cloud_pct', 'weather_pressure_hpa',
                            'weather_precip_mm', 'weather_temperature', 'weather_condition_text',
@@ -144,6 +144,9 @@ def write_predictions_to_db(predictions_df):
         columns_to_write = [col for col in available_columns if col in df_to_write.columns]
 
         df_to_write = df_to_write[columns_to_write]
+
+        # Lägg till updated_ts med aktuell tidstämpel
+        df_to_write['updated_ts'] = datetime.now()
 
         # Rensa eventuell gammal data för samma tidsperiod
         start_ts = df_to_write['ts'].min()
