@@ -1,14 +1,23 @@
 # Database connectivity
 pymysql==1.1.0
 
-# Data handling (using latest version for Python 3.13 compatibility)
+# Data handling (Python 3.13 compatible versions)
+numpy>=2.1.0
 pandas>=2.2.0
 
 # Environment variables (for secure credential management)
 python-dotenv==1.0.0
 
-scikit-learn==1.4.2
-numpy==1.26.4
+# Machine learning (Python 3.13 compatible)
+scikit-learn>=1.5.0
+
+# Excel file handling
 xlsxwriter==3.2.9
 openpyxl==3.1.5
+
+# Database ORM
 sqlalchemy==2.0.44
+
+# REST API framework
+flask==3.1.0
+gunicorn==23.0.0
