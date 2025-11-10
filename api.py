@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 import os
 from dotenv import load_dotenv
+from main import main
+from data_io import write_predictions_to_db
 
 # Load environment variables
 load_dotenv()
@@ -62,6 +64,47 @@ def echo():
         'timestamp': datetime.now().isoformat()
     }), 200
 
+@app.route('/make_prediction', methods=['POST'])
+@require_api_key
+def make_prediction():
+    """Run ML prediction model and save results to database (requires API key)"""
+    try:
+        # Kör main() som returnerar predictions dataframe
+        print("Startar prediction från API-anrop...")
+        predictions_df = main()
+
+        if predictions_df is None:
+            return jsonify({
+                'error': 'Prediction failed',
+                'message': 'main() returnerade None. Kontrollera att det finns data för morgondagen.'
+            }), 500
+
+        # Skriv predictions till databasen
+        print("Skriver predictions till databasen...")
+        antal_rader = write_predictions_to_db(predictions_df)
+
+        # Räkna ut total förväntad produktion
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        predictions_df["energy_kWh"] = predictions_df["pv_power_w_avg"].clip(lower=0) * 0.25 / 1000
+        total_kWh = predictions_df["energy_kWh"].sum()
+
+        return jsonify({
+            'status': 'success',
+            'message': f'Prediction genomförd och sparad till databas',
+            'prediction_date': tomorrow,
+            'rows_saved': antal_rader,
+            'expected_production_kWh': round(total_kWh, 2),
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        print(f"Error vid prediction: {e}")
+        return jsonify({
+            'error': 'Prediction error',
+            'message': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/', methods=['GET'])
 def root():
     """Root endpoint with API information (public)"""
@@ -72,7 +115,8 @@ def root():
             'GET /': 'This information (public)',
             'GET /health': 'Health check (public)',
             'GET /ping': 'Ping-pong test (requires API key)',
-            'POST /echo': 'Echo JSON data back (requires API key)'
+            'POST /echo': 'Echo JSON data back (requires API key)',
+            'POST /make_prediction': 'Run ML prediction and save to database (requires API key)'
         },
         'authentication': 'API Key required for protected endpoints',
         'header': 'X-API-Key: your-api-key'

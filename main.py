@@ -209,6 +209,8 @@ def main():
         total_kWh = tomorrow_df["energy_kWh"].sum()
         print("Förväntad produktion imorgon:", total_kWh, "kWh")
 
+        return predictions_df
+
 
     except Exception as e:
         print(f"Error: {e}")

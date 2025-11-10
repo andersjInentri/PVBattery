@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 # Använd SQLAlchemy för databas connection.
 # SQLAlchemy är rekommenderat av pandas och ger bättre kompatibilitet.
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
@@ -92,6 +92,87 @@ def write_to_excel(df, date_str, sheet_prefix='Data', filename='prediction.xlsx'
             print(f"{sheet_prefix} för {date_str} sparad till ny fil {filename}")
     except Exception as e:
         raise Exception(f"Fel vid skrivning till Excel: {e}")
+
+
+def write_predictions_to_db(predictions_df):
+    """
+    Skriv predictions till prediction-tabellen i databasen.
+
+    Args:
+        predictions_df: DataFrame med predictions (med timestamp som index)
+
+    Returns:
+        antal_rader: Antal rader som skrevs till databasen
+    """
+    try:
+        engine = get_db_engine()
+
+        # Förbered dataframe för insert
+        # Gör en kopia för att inte modifiera originalet
+        df_to_write = predictions_df.copy()
+
+        # Kontrollera om index är en DatetimeIndex eller om ts redan är en kolumn
+        if df_to_write.index.name is None and 'ts' not in df_to_write.columns:
+            # Index är timestamps utan namn, återställ och namnge
+            df_to_write = df_to_write.reset_index()
+            df_to_write = df_to_write.rename(columns={'index': 'ts'})
+        elif df_to_write.index.name and 'ts' not in df_to_write.columns:
+            # Index har ett namn (t.ex. 'ts' eller annat), återställ det
+            df_to_write = df_to_write.reset_index()
+            if df_to_write.columns[0] != 'ts':
+                df_to_write = df_to_write.rename(columns={df_to_write.columns[0]: 'ts'})
+        elif 'ts' in df_to_write.columns:
+            # ts finns redan som kolumn, använd den som den är
+            pass
+        else:
+            # Reset index och döp om första kolumnen till ts
+            df_to_write = df_to_write.reset_index()
+            if 'ts' not in df_to_write.columns:
+                df_to_write = df_to_write.rename(columns={df_to_write.columns[0]: 'ts'})
+
+        # Välj kolumner som finns i både DataFrame och prediction-tabellen
+        # Kolumner i prediction-tabellen:
+        # ts, price_sek_per_kwh, pv_power_w_avg, weather_cloud_pct, weather_pressure_hpa,
+        # weather_precip_mm, weather_temperature, weather_condition_text, weather_condition_text2,
+        # sun_azimuth_deg, sun_elevation_deg, is_daylight
+
+        available_columns = ['ts', 'pv_power_w_avg', 'weather_cloud_pct', 'weather_pressure_hpa',
+                           'weather_precip_mm', 'weather_temperature', 'weather_condition_text',
+                           'sun_azimuth_deg', 'sun_elevation_deg', 'is_daylight']
+
+        # Filtrera så vi bara tar kolumner som finns i DataFrame
+        columns_to_write = [col for col in available_columns if col in df_to_write.columns]
+
+        df_to_write = df_to_write[columns_to_write]
+
+        # Rensa eventuell gammal data för samma tidsperiod
+        start_ts = df_to_write['ts'].min()
+        end_ts = df_to_write['ts'].max()
+
+        with engine.connect() as conn:
+            delete_query = text(f"DELETE FROM prediction WHERE ts >= '{start_ts}' AND ts <= '{end_ts}'")
+            print(f"Tar bort gammal data för perioden {start_ts} till {end_ts}")
+            result = conn.execute(delete_query)
+            conn.commit()
+
+        # Skriv ny data till tabellen
+        antal_rader = df_to_write.to_sql(
+            name='prediction',
+            con=engine,
+            if_exists='append',
+            index=False,
+            method='multi'
+        )
+
+        print(f"Skrev {len(df_to_write)} rader till prediction-tabellen med kolumner: {columns_to_write}")
+
+        # Stäng engine
+        engine.dispose()
+
+        return len(df_to_write)
+
+    except Exception as e:
+        raise Exception(f"Fel vid skrivning till databas: {e}")
 
 
 if __name__ == "__main__":
