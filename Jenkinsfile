@@ -35,18 +35,6 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    echo "Building Docker image: ${FULL_IMAGE_NAME}:${IMAGE_TAG}"
-                    sh """
-                        docker build -t ${FULL_IMAGE_NAME}:${IMAGE_TAG} .
-                        docker tag ${FULL_IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}:latest
-                    """
-                }
-            }
-        }
-
         stage('Login to GitHub Container Registry') {
             steps {
                 script {
@@ -58,13 +46,32 @@ pipeline {
             }
         }
 
-        stage('Push to GitHub Container Registry') {
+        stage('Setup Docker Buildx') {
             steps {
                 script {
-                    echo "Pushing image to GHCR: ${FULL_IMAGE_NAME}:${IMAGE_TAG}"
+                    echo "Setting up Docker Buildx for multi-platform builds..."
                     sh """
-                        docker push ${FULL_IMAGE_NAME}:${IMAGE_TAG}
-                        docker push ${FULL_IMAGE_NAME}:latest
+                        # Create buildx builder if it doesn't exist
+                        docker buildx create --name mybuilder --use || docker buildx use mybuilder
+                        docker buildx inspect --bootstrap
+                    """
+                }
+            }
+        }
+
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    echo "Building and pushing multi-platform Docker image: ${FULL_IMAGE_NAME}:${IMAGE_TAG}"
+                    sh """
+                        # Build for AMD64 (Azure Container Apps requirement) and ARM64 (local RPI)
+                        # --push automatically pushes to registry after build
+                        docker buildx build \
+                            --platform linux/amd64,linux/arm64 \
+                            --tag ${FULL_IMAGE_NAME}:${IMAGE_TAG} \
+                            --tag ${FULL_IMAGE_NAME}:latest \
+                            --push \
+                            .
                     """
                 }
             }
