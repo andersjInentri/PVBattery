@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 # Använd SQLAlchemy för databas connection.
 # SQLAlchemy är rekommenderat av pandas och ger bättre kompatibilitet.
@@ -146,7 +146,7 @@ def write_predictions_to_db(predictions_df):
         df_to_write = df_to_write[columns_to_write]
 
         # Lägg till updated_ts med aktuell tidstämpel
-        df_to_write['updated_ts'] = datetime.now()
+        df_to_write['updated_ts'] = datetime.now() + timedelta(hours=1)
 
         # Rensa eventuell gammal data för samma tidsperiod
         start_ts = df_to_write['ts'].min()
