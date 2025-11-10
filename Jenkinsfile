@@ -115,8 +115,8 @@ pipeline {
                                 --registry-server ${GHCR_REGISTRY} \\
                                 --registry-username ${GITHUB_USERNAME} \\
                                 --registry-password \$GITHUB_TOKEN \\
-                                --min-replicas 1 \\
-                                --max-replicas 3
+                                --min-replicas 0 \\
+                                --max-replicas 1
                         else
                             echo "Container App exists. Updating with new image..."
                             az containerapp update \\
