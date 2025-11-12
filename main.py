@@ -201,11 +201,27 @@ def run_model(model, tomorrow_df):
     # Plocka ut solhöjden som numpy-array
     sun_elev = tomorrow_df["sun_elevation_deg"].astype(float).values
 
-    # Explicit molnighetsdämpning: Applicera en dämpningsfaktor baserat på molnighet
-    # Vid 100% moln: dämpning med 60% (faktor 0.4)
-    # Vid 0% moln: ingen dämpning (faktor 1.0)
+    # Adaptiv molnighetsdämpning baserat på solhöjd
+    # Vid höga solhöjder (mitt på dagen): mer diffust ljus kommer igenom moln, mindre dämpning (40%)
+    # Vid låga solhöjder (morgon/kväll): mer dämpning från moln (60%)
+    # Detta ger mer realistiska prediktioner vid molnighet
     cloud_pct = tomorrow_df["weather_cloud_pct"].astype(float).values
-    cloud_damping_factor = 1.0 - (cloud_pct / 100.0) * 0.6
+
+    # Beräkna adaptiv dämpningsfaktor:
+    # - Vid sun_elev < 5°: 60% dämpning
+    # - Vid sun_elev > 12°: 40% dämpning
+    # - Linjär interpolation däremellan
+    damping_rate = np.where(
+        sun_elev < 5,
+        0.6,  # Låg sol: 60% dämpning
+        np.where(
+            sun_elev > 12,
+            0.4,  # Hög sol: 40% dämpning
+            0.6 - (sun_elev - 5) * (0.2 / 7)  # Interpolera mellan 5° och 12°
+        )
+    )
+
+    cloud_damping_factor = 1.0 - (cloud_pct / 100.0) * damping_rate
     predictions = predictions * cloud_damping_factor
 
     # Sätt all produktion till 0 när solen är under horisonten
