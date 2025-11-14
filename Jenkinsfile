@@ -31,6 +31,13 @@ pipeline {
         disableConcurrentBuilds()
     }
 
+    triggers {
+        // Schedule daily build at 23:00 (11 PM)
+        cron('H 23 * * *')
+        // Poll GitHub repository for changes every 5 minutes
+        pollSCM('H/5 * * * *')
+    }
+
     stages {
         stage('Checkout') {
             steps {
