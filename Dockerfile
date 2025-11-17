@@ -20,4 +20,5 @@ COPY . .
 EXPOSE 8000
 
 # Run the Flask application with gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "api:app"]
+# Timeout increased to 600s (10 min) to allow for model training which includes GridSearchCV
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "600", "api:app"]
