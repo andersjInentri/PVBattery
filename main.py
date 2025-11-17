@@ -15,7 +15,9 @@ TARGET = "pv_power_w_avg"
 # Maximalt utökade features med extremt hög molnighetspåverkan
 # Tidsfunktioner tillagda för att förbättra morgon/kväll-prognoser: hour, month, day, hour_sin, hour_cos
 # Temperatur tillagd eftersom solpaneler är mer effektiva vid lägre temperaturer
+# Solhöjds-polynomtermer tillagda för att fånga produktionskurvan även utan moln
 FEATURES  = ["weather_cloud_pct", "weather_temperature", "weather_condition_text", "sun_azimuth_sin", "sun_azimuth_cos", "sun_elevation_deg", "is_daylight",
+             "sun_elev_squared", "sun_elev_cubed",
              "cloud_sun_interaction", "cloud_squared", "cloud_cubed", "cloud_fourth", "cloud_sun_squared", "cloud_sun_cubed", "cloud_sun_fourth",
              "hour", "month", "day", "hour_sin", "hour_cos"]
 
@@ -62,7 +64,7 @@ def train_and_validate_model(df):
     # Bygg Lasso-pipeline (skalning + L1-regression)
     pipe = Pipeline([
         ("scaler", StandardScaler()),
-        ("lasso", Lasso(max_iter=100000, random_state=42))  # Ökat från 50000 till 100000 för bättre konvergens med fler features
+        ("lasso", Lasso(max_iter=200000, random_state=42))  # Ökat till 200000 för bättre konvergens med polynomtermer
     ])
 
     # Hyperparametrar att testa för Lasso (L1-styrka)
@@ -132,6 +134,11 @@ def clean_and_prepare_data(df):
         prepared_data["hour_sin"] = np.sin(2 * np.pi * prepared_data["hour"] / 24)
         prepared_data["hour_cos"] = np.cos(2 * np.pi * prepared_data["hour"] / 24)
 
+        # Lägg till polynomtermer för solhöjd för att fånga produktionskurvan
+        # Dessa gör att modellen kan lära sig att produktion inte är konstant även vid perfekt väder
+        prepared_data["sun_elev_squared"] = prepared_data["sun_elevation_deg"] ** 2
+        prepared_data["sun_elev_cubed"] = prepared_data["sun_elevation_deg"] ** 3
+
         # Lägg till flera interaktionstermer för att kraftigt öka molnighetens påverkan
         # Interaktion mellan molnighet och solhöjd (molnighet har större effekt vid hög solhöjd)
         prepared_data["cloud_sun_interaction"] = prepared_data["weather_cloud_pct"] * prepared_data["sun_elevation_deg"]
@@ -176,6 +183,10 @@ def tomorrow_data(df):
         # Cykliska features för timme (0-23) så att 23 och 0 är nära varandra
         tomorrow_data["hour_sin"] = np.sin(2 * np.pi * tomorrow_data["hour"] / 24)
         tomorrow_data["hour_cos"] = np.cos(2 * np.pi * tomorrow_data["hour"] / 24)
+
+        # Lägg till polynomtermer för solhöjd (samma som i träningsdatan)
+        tomorrow_data["sun_elev_squared"] = tomorrow_data["sun_elevation_deg"] ** 2
+        tomorrow_data["sun_elev_cubed"] = tomorrow_data["sun_elevation_deg"] ** 3
 
         # Lägg till samma interaktionstermer som i träningsdatan
         tomorrow_data["cloud_sun_interaction"] = tomorrow_data["weather_cloud_pct"] * tomorrow_data["sun_elevation_deg"]
