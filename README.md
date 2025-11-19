@@ -1,4 +1,6 @@
 # PVBattery
+## Use of Claude
+Note that the code in branch azure-api has been co-authored with Claude.
 ## Purpose
 For each quarter of an hour the coming day predict how many Watt the solar panel will produce.
 
